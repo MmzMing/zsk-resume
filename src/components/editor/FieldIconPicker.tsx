@@ -51,9 +51,10 @@ function IconRenderer({ name, className }: { name: string; className?: string })
 interface FieldIconPickerProps {
   value: string | undefined
   onChange: (name: string) => void
+  disabled?: boolean
 }
 
-export function FieldIconPicker({ value, onChange }: FieldIconPickerProps) {
+export function FieldIconPicker({ value, onChange, disabled = false }: FieldIconPickerProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const selectedIconName = value || 'user'
@@ -72,9 +73,10 @@ export function FieldIconPicker({ value, onChange }: FieldIconPickerProps) {
     <div className="relative" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen(!open)}
-        className="flex items-center justify-center w-7 h-7 rounded-md border hover:border-primary hover:text-primary transition-colors text-muted-foreground bg-background shrink-0"
-        title="选择图标"
+        onClick={() => !disabled && setOpen(!open)}
+        disabled={disabled}
+        className="flex items-center justify-center w-7 h-7 rounded-md border hover:border-primary hover:text-primary transition-colors text-muted-foreground bg-background shrink-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:text-muted-foreground"
+        title={disabled ? '' : '选择图标'}
       >
         <IconRenderer name={selectedIconName} className="size-3.5" />
       </button>

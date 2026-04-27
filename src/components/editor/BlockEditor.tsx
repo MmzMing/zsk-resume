@@ -160,7 +160,10 @@ function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
     updateBlock(block.id, { headerFields: newFields })
   }
 
+  const FIXED_TOP_KEYS = new Set(['name', 'title'])
+
   const removeField = (key: string) => {
+    if (FIXED_TOP_KEYS.has(key)) return
     const newFields = fields.filter((f) => f.key !== key)
     updateBlock(block.id, { headerFields: newFields })
   }
@@ -169,6 +172,11 @@ function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
     (event: DragEndEvent) => {
       const { active, over } = event
       if (!over || active.id === over.id) return
+
+      const fixedTopKeys = new Set(['name', 'title'])
+
+      // Prevent dragging fixed fields
+      if (fixedTopKeys.has(String(active.id))) return
 
       const activeField = fields.find((f) => f.key === active.id)
       const overField = fields.find((f) => f.key === over.id)
@@ -181,8 +189,9 @@ function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
       const newFields = [...fields]
       const [moved] = newFields.splice(oldIndex, 1)
 
-      // If dropped onto a field in a different layer, change layer
-      if (activeField.layer !== overField.layer) {
+      // Change layer when dropped onto a field in a different layer
+      // Dropping onto fixed fields (name/title) changes to 'top' layer
+      if (activeField.layer !== overField.layer || fixedTopKeys.has(String(over.id))) {
         moved.layer = overField.layer
       }
 
@@ -226,11 +235,14 @@ function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
   }
 
   const availableTemplates = FIELD_TEMPLATES.filter(
-    (t) => !fields.some((f) => f.key === t.key || f.key.startsWith(t.key + '_'))
+    (t) => !FIXED_TOP_KEYS.has(t.key) && !fields.some((f) => f.key === t.key || f.key.startsWith(t.key + '_'))
   )
 
   const topFields = fields.filter((f) => f.layer === 'top')
   const bottomFields = fields.filter((f) => f.layer !== 'top')
+
+  const fixedTopFields = topFields.filter((f) => FIXED_TOP_KEYS.has(f.key))
+  const sortableTopFields = topFields.filter((f) => !FIXED_TOP_KEYS.has(f.key))
 
   return (
     <div className="space-y-4">
@@ -251,24 +263,35 @@ function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-3">
-                {/* Top Layer */}
-                {topFields.length > 0 && (
+                {/* Top Layer - Fixed fields + Sortable fields */}
+                <div className="space-y-2">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">上层</div>
                   <div className="space-y-2">
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">上层</div>
-                    <div className="space-y-2">
-                      {topFields.map((field) => (
-                        <SortableHeaderField
-                          key={field.key}
-                          field={field}
-                          onUpdateValue={(value) => updateField(field.key, value)}
-                          onUpdateIcon={(icon) => updateFieldIcon(field.key, icon)}
-                          onUpdateLabel={field.key.startsWith('custom_') ? (label) => updateFieldLabel(field.key, label) : undefined}
-                          onRemove={() => removeField(field.key)}
-                        />
-                      ))}
-                    </div>
+                    {/* Fixed fields: name & title */}
+                    {fixedTopFields.map((field) => (
+                      <SortableHeaderField
+                        key={field.key}
+                        field={field}
+                        onUpdateValue={(value) => updateField(field.key, value)}
+                        onUpdateIcon={(icon) => updateFieldIcon(field.key, icon)}
+                        onUpdateLabel={field.key.startsWith('custom_') ? (label) => updateFieldLabel(field.key, label) : undefined}
+                        onRemove={() => removeField(field.key)}
+                        fixed
+                      />
+                    ))}
+                    {/* Sortable top fields */}
+                    {sortableTopFields.map((field) => (
+                      <SortableHeaderField
+                        key={field.key}
+                        field={field}
+                        onUpdateValue={(value) => updateField(field.key, value)}
+                        onUpdateIcon={(icon) => updateFieldIcon(field.key, icon)}
+                        onUpdateLabel={field.key.startsWith('custom_') ? (label) => updateFieldLabel(field.key, label) : undefined}
+                        onRemove={() => removeField(field.key)}
+                      />
+                    ))}
                   </div>
-                )}
+                </div>
 
                 {/* Bottom Layer */}
                 {bottomFields.length > 0 && (

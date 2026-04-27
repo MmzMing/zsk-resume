@@ -35,11 +35,11 @@ const defaultLayout: PageLayout = {
 }
 
 const defaultHeaderFields: HeaderField[] = [
-  { key: 'name', label: '姓名', value: '张三', type: 'text', icon: 'user' },
-  { key: 'title', label: '职位', value: '高级前端工程师', type: 'text', icon: 'briefcase' },
-  { key: 'phone', label: '电话', value: '138-0000-0000', type: 'tel', icon: 'phone' },
-  { key: 'email', label: '邮箱', value: 'zhangsan@example.com', type: 'email', icon: 'mail' },
-  { key: 'location', label: '地址', value: '北京市', type: 'text', icon: 'mapPin' },
+  { key: 'name', label: '姓名', value: '张三', type: 'text', icon: 'user', layer: 'top' },
+  { key: 'title', label: '职位', value: '高级前端工程师', type: 'text', icon: 'briefcase', layer: 'top' },
+  { key: 'phone', label: '电话', value: '138-0000-0000', type: 'tel', icon: 'phone', layer: 'bottom' },
+  { key: 'email', label: '邮箱', value: 'zhangsan@example.com', type: 'email', icon: 'mail', layer: 'bottom' },
+  { key: 'location', label: '地址', value: '北京市', type: 'text', icon: 'mapPin', layer: 'bottom' },
 ]
 
 const defaultBlocks: ResumeBlock[] = [

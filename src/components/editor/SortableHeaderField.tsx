@@ -10,6 +10,7 @@ interface SortableHeaderFieldProps {
   onUpdateIcon: (icon: string) => void
   onUpdateLabel?: (label: string) => void
   onRemove: () => void
+  fixed?: boolean
 }
 
 export function SortableHeaderField({
@@ -18,6 +19,7 @@ export function SortableHeaderField({
   onUpdateIcon,
   onUpdateLabel,
   onRemove,
+  fixed = false,
 }: SortableHeaderFieldProps) {
   const {
     attributes,
@@ -26,7 +28,7 @@ export function SortableHeaderField({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: field.key })
+  } = useSortable({ id: field.key, disabled: fixed })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -41,17 +43,21 @@ export function SortableHeaderField({
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
+      {...(fixed ? {} : attributes)}
       className="flex items-center gap-2 group"
     >
-      <button
-        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors touch-manipulation shrink-0"
-        title="拖拽排序"
-        {...listeners}
-      >
-        <GripVertical className="size-4" />
-      </button>
-      <FieldIconPicker value={field.icon} onChange={onUpdateIcon} />
+      {fixed ? (
+        <div className="w-4 shrink-0" />
+      ) : (
+        <div
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors touch-manipulation shrink-0 select-none p-1"
+          title="拖拽排序"
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </div>
+      )}
+      <FieldIconPicker value={field.icon} onChange={onUpdateIcon} disabled={fixed} />
       {isCustom && onUpdateLabel ? (
         <input
           type="text"
@@ -71,13 +77,17 @@ export function SortableHeaderField({
         onChange={(e) => onUpdateValue(e.target.value)}
         className="flex-1 px-2.5 py-1.5 text-sm border rounded-md outline-none focus:ring-2 focus:ring-ring bg-background min-w-0 min-h-[40px] sm:min-h-0"
       />
-      <button
-        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all shrink-0 p-1"
-        onClick={onRemove}
-        title={`移除${field.label}`}
-      >
-        <X className="size-3" />
-      </button>
+      {fixed ? (
+        <div className="w-5 shrink-0" />
+      ) : (
+        <button
+          className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all shrink-0 p-1"
+          onClick={onRemove}
+          title={`移除${field.label}`}
+        >
+          <X className="size-3" />
+        </button>
+      )}
     </div>
   )
 }
