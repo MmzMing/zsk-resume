@@ -1,9 +1,6 @@
 name = "zsk-resume"
 compatibility_date = "2026-04-28"
 
-[assets]
-directory = "./dist"
-
 # 可选：自定义域名
 # routes = [
 #   { pattern = "your-domain.com", custom_domain = true }
