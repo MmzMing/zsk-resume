@@ -1,0 +1,42 @@
+name = "zsk-resume"
+compatibility_date = "2026-04-28"
+
+# Cloudflare Pages 配置
+[site]
+bucket = "./dist"
+
+# SPA 路由回退：所有请求都指向 index.html
+[[site.rules]]
+from = "/*"
+to = "/index.html"
+status = 200
+
+# 排除静态资源文件，避免被 SPA 路由规则覆盖
+[[site.rules]]
+from = "*.png"
+to = "/:file.png"
+status = 200
+
+[[site.rules]]
+from = "*.svg"
+to = "/:file.svg"
+status = 200
+
+[[site.rules]]
+from = "*.ico"
+to = "/:file.ico"
+status = 200
+
+# 可选：自定义域名
+# routes = [
+#   { pattern = "your-domain.com", custom_domain = true }
+# ]
+
+# 可选：环境变量（建议在 Cloudflare Dashboard 中设置敏感信息）
+# [vars]
+# API_URL = "https://api.example.com"
+
+# 可选：KV 命名空间绑定
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "your-kv-namespace-id"
