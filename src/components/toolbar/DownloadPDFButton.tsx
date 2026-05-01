@@ -1,30 +1,31 @@
 import { useCallback, useState } from 'react'
-import { FileDown, Loader2 } from 'lucide-react'
+import { FileDown, Loader2, CheckCircle2 } from 'lucide-react'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/Toast'
 
 const A4_WIDTH_MM = 210
 
 export function DownloadPDFButton() {
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const { addToast } = useToast()
 
   const handleDownload = useCallback(async () => {
     setLoading(true)
     try {
-      // Find all A4 page divs in the preview
       const root = document.querySelector('[data-preview="resume-root"]') as HTMLElement
       if (!root) {
-        alert('预览区域未找到，请刷新页面后重试')
+        addToast('error', '预览区域未找到，请刷新页面后重试')
         setLoading(false)
         return
       }
 
-      // Each A4 page is a direct child div with white background
       const pageDivs = Array.from(root.children) as HTMLElement[]
 
       if (pageDivs.length === 0) {
-        alert('未找到简历页面')
+        addToast('error', '未找到简历页面')
         setLoading(false)
         return
       }
@@ -41,11 +42,9 @@ export function DownloadPDFButton() {
           backgroundColor: '#ffffff',
           logging: false,
           onclone: (clonedDoc) => {
-            // Strip all external stylesheets to prevent oklch parsing errors
             clonedDoc.querySelectorAll('style').forEach((s) => s.remove())
             clonedDoc.querySelectorAll('link[rel="stylesheet"]').forEach((s) => s.remove())
 
-            // Convert oklch colors to safe hex/rgb on all elements
             clonedDoc.querySelectorAll('*').forEach((el) => {
               const htmlEl = el as HTMLElement
               const computed = window.getComputedStyle(el)
@@ -81,13 +80,16 @@ export function DownloadPDFButton() {
       }
 
       pdf.save('简历.pdf')
+      setSuccess(true)
+      addToast('success', 'PDF 导出成功')
+      setTimeout(() => setSuccess(false), 2000)
     } catch (err) {
       console.error('PDF generation failed:', err)
-      alert('PDF 生成失败，请重试')
+      addToast('error', 'PDF 生成失败，请重试')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [addToast])
 
   return (
     <Button
@@ -98,6 +100,8 @@ export function DownloadPDFButton() {
     >
       {loading ? (
         <Loader2 className="size-3.5 animate-spin" />
+      ) : success ? (
+        <CheckCircle2 className="size-3.5 text-green-600" />
       ) : (
         <FileDown className="size-3.5" />
       )}

@@ -75,14 +75,14 @@ export function FieldIconPicker({ value, onChange, disabled = false }: FieldIcon
         type="button"
         onClick={() => !disabled && setOpen(!open)}
         disabled={disabled}
-        className="flex items-center justify-center w-7 h-7 rounded-md border hover:border-primary hover:text-primary transition-colors text-muted-foreground bg-background shrink-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:text-muted-foreground"
+        className="flex items-center justify-center w-7 h-7 rounded-md border border-black dark:border-white hover:border-primary hover:text-primary transition-colors text-muted-foreground bg-background shrink-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:text-muted-foreground"
         title={disabled ? '' : '选择图标'}
       >
         <IconRenderer name={selectedIconName} className="size-3.5" />
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 left-0 w-[240px] bg-popover border rounded-lg shadow-lg p-2">
+        <div className="absolute z-50 mt-1 left-0 w-[240px] bg-popover border border-black dark:border-white rounded-lg shadow-lg p-2">
           <div className="grid grid-cols-6 gap-1">
             {FIELD_ICONS.map((icon) => {
               const isActive = value === icon.name

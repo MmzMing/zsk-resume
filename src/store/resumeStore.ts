@@ -4,12 +4,20 @@ import type { PageLayout, ResumeBlock, Template, HeaderField } from '@/types/res
 
 export type { HeaderField }
 
+interface StoreHistory {
+  past: ResumeBlock[][]
+  future: ResumeBlock[][]
+}
+
 interface ResumeStore {
   pageLayout: PageLayout
   template: Template
   blocks: ResumeBlock[]
   photo: string | null
   smartOnePage: boolean
+  history: StoreHistory
+  canUndo: boolean
+  canRedo: boolean
 
   setPageLayout: (layout: Partial<PageLayout>) => void
   setTemplate: (template: Template) => void
@@ -21,6 +29,9 @@ interface ResumeStore {
   setPhoto: (photo: string | null) => void
   setSmartOnePage: (enabled: boolean) => void
   resetToDefaults: () => void
+  undo: () => void
+  redo: () => void
+  clearHistory: () => void
 }
 
 const defaultLayout: PageLayout = {
@@ -115,6 +126,21 @@ function getConsentStorage(): StateStorage {
   }
 }
 
+const MAX_HISTORY_LENGTH = 50
+
+function addToHistory(state: ResumeStore, newBlocks: ResumeBlock[]): ResumeStore {
+  return {
+    ...state,
+    blocks: newBlocks,
+    history: {
+      past: [...state.history.past, state.blocks].slice(-MAX_HISTORY_LENGTH),
+      future: [],
+    },
+    canUndo: true,
+    canRedo: false,
+  }
+}
+
 export const useResumeStore = create<ResumeStore>()(
   persist(
     (set) => ({
@@ -123,33 +149,36 @@ export const useResumeStore = create<ResumeStore>()(
       blocks: defaultBlocks,
       photo: null,
       smartOnePage: false,
+      history: { past: [], future: [] },
+      canUndo: false,
+      canRedo: false,
 
       setPageLayout: (layout) =>
         set((state) => ({ pageLayout: { ...state.pageLayout, ...layout } })),
 
       setTemplate: (template) => set({ template }),
 
-      setBlocks: (blocks) => set({ blocks }),
+      setBlocks: (blocks) =>
+        set((state) => addToHistory(state, blocks)),
 
       addBlock: (block) =>
-        set((state) => ({ blocks: [...state.blocks, block] })),
+        set((state) => addToHistory(state, [...state.blocks, block])),
 
       removeBlock: (id) =>
-        set((state) => ({ blocks: state.blocks.filter((b) => b.id !== id) })),
+        set((state) => addToHistory(state, state.blocks.filter((b) => b.id !== id))),
 
       updateBlock: (id, updates) =>
-        set((state) => ({
-          blocks: state.blocks.map((b) => (b.id === id ? { ...b, ...updates } : b)),
-        })),
+        set((state) => {
+          const newBlocks = state.blocks.map((b) => (b.id === id ? { ...b, ...updates } : b))
+          return addToHistory(state, newBlocks)
+        }),
 
       reorderBlocks: (fromIndex, toIndex) =>
         set((state) => {
           const newBlocks = [...state.blocks]
           const [moved] = newBlocks.splice(fromIndex, 1)
           newBlocks.splice(toIndex, 0, moved)
-          return {
-            blocks: newBlocks.map((b, i) => ({ ...b, order: i })),
-          }
+          return addToHistory(state, newBlocks.map((b, i) => ({ ...b, order: i })))
         }),
 
       setPhoto: (photo) => set({ photo }),
@@ -163,6 +192,48 @@ export const useResumeStore = create<ResumeStore>()(
           blocks: defaultBlocks,
           photo: null,
           smartOnePage: false,
+          history: { past: [], future: [] },
+          canUndo: false,
+          canRedo: false,
+        }),
+
+      undo: () =>
+        set((state) => {
+          if (state.history.past.length === 0) return state
+          const previous = state.history.past[state.history.past.length - 1]
+          const newPast = state.history.past.slice(0, -1)
+          return {
+            blocks: previous,
+            history: {
+              past: newPast,
+              future: [state.blocks, ...state.history.future],
+            },
+            canUndo: newPast.length > 0,
+            canRedo: true,
+          }
+        }),
+
+      redo: () =>
+        set((state) => {
+          if (state.history.future.length === 0) return state
+          const next = state.history.future[0]
+          const newFuture = state.history.future.slice(1)
+          return {
+            blocks: next,
+            history: {
+              past: [...state.history.past, state.blocks],
+              future: newFuture,
+            },
+            canUndo: true,
+            canRedo: newFuture.length > 0,
+          }
+        }),
+
+      clearHistory: () =>
+        set({
+          history: { past: [], future: [] },
+          canUndo: false,
+          canRedo: false,
         }),
     }),
     {

@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
@@ -35,7 +35,7 @@ interface TiptapEditorProps {
   paragraphSpacing?: number
 }
 
-function ToolbarButton({
+const ToolbarButton = ({
   active,
   onClick,
   children,
@@ -45,7 +45,7 @@ function ToolbarButton({
   onClick: () => void
   children: React.ReactNode
   title?: string
-}) {
+}) => {
   return (
     <button
       type="button"
@@ -62,7 +62,7 @@ function ToolbarButton({
   )
 }
 
-function EditorToolbar({ editor }: { editor: Editor | null }) {
+const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
   const setLink = useCallback(() => {
     if (!editor) return
     const previousUrl = editor.getAttributes('link').href
@@ -78,7 +78,7 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
   if (!editor) return null
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b bg-muted/50 rounded-t-md">
+    <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 border-b border-black dark:border-white bg-muted/50 rounded-t-md">
       <ToolbarButton
         active={editor.isActive('heading', { level: 1 })}
         onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -101,7 +101,7 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
         <Heading3 className="size-4" />
       </ToolbarButton>
 
-      <div className="w-px h-5 bg-border mx-1" />
+      <div className="w-px h-5 bg-black dark:bg-white mx-1" />
 
       <ToolbarButton
         active={editor.isActive('bold')}
@@ -139,7 +139,7 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
         <Code className="size-4" />
       </ToolbarButton>
 
-      <div className="w-px h-5 bg-border mx-1" />
+      <div className="w-px h-5 bg-black dark:bg-white mx-1" />
 
       <ToolbarButton
         active={editor.isActive('bulletList')}
@@ -170,7 +170,7 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
         <LinkIcon className="size-4" />
       </ToolbarButton>
 
-      <div className="w-px h-5 bg-border mx-1" />
+      <div className="w-px h-5 bg-black dark:bg-white mx-1" />
 
       <ToolbarButton
         onClick={() => editor.chain().focus().undo().run()}
@@ -188,7 +188,9 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
   )
 }
 
-export function TiptapEditor({ value, onChange, placeholder, fontSize = 16, lineHeight = 1.6, paragraphSpacing = 5 }: TiptapEditorProps) {
+export const TiptapEditor = ({ value, onChange, placeholder, fontSize = 16, lineHeight = 1.6, paragraphSpacing = 5 }: TiptapEditorProps) => {
+  const hasInitialized = useRef(false)
+  
   const editor = useEditor({
     extensions: [
       CustomStarterKit,
@@ -204,10 +206,25 @@ export function TiptapEditor({ value, onChange, placeholder, fontSize = 16, line
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML())
     },
-  })
+    editorProps: {
+      attributes: {
+        class: 'focus:outline-none',
+      },
+    },
+  }, [placeholder])
+
+  useEffect(() => {
+    if (editor && hasInitialized.current) {
+      const currentContent = editor.getHTML()
+      if (currentContent !== value) {
+        editor.commands.setContent(value, { emitUpdate: false })
+      }
+    }
+    hasInitialized.current = true
+  }, [editor, value])
 
   return (
-    <div className="border rounded-md overflow-hidden bg-background">
+    <div className="border border-black dark:border-white rounded-md overflow-hidden bg-background">
       <EditorToolbar editor={editor} />
       <EditorContent
         editor={editor}

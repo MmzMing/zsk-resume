@@ -266,6 +266,48 @@
     background: hsl(var(--muted-foreground) / 0.5);
   }
 
+  /* Accordion animation */
+  @keyframes accordion-down {
+    from {
+      grid-template-rows: 0fr;
+    }
+    to {
+      grid-template-rows: 1fr;
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      grid-template-rows: 1fr;
+    }
+    to {
+      grid-template-rows: 0fr;
+    }
+  }
+
+  @keyframes slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .animate-accordion-down {
+    animation: accordion-down 200ms ease-out;
+  }
+
+  .animate-accordion-up {
+    animation: accordion-up 200ms ease-out;
+  }
+
+  .animate-slide-in {
+    animation: slide-in 300ms ease-out;
+  }
+
   /* Mobile scrollbar thinner */
   @media (max-width: 639px) {
     ::-webkit-scrollbar {

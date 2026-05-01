@@ -75,7 +75,7 @@ export function SortableHeaderField({
         placeholder={field.label}
         value={field.value}
         onChange={(e) => onUpdateValue(e.target.value)}
-        className="flex-1 px-2.5 py-1.5 text-sm border rounded-md outline-none focus:ring-2 focus:ring-ring bg-background min-w-0 min-h-[40px] sm:min-h-0"
+        className="flex-1 px-2.5 py-1.5 text-sm border border-black dark:border-white rounded-md outline-none focus:ring-2 focus:ring-black dark:focus:ring-white bg-background min-w-0 min-h-[40px] sm:min-h-0"
       />
       {fixed ? (
         <div className="w-5 shrink-0" />

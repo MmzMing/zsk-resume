@@ -95,7 +95,7 @@ export function PhotoUploader() {
           <img
             src={photo}
             alt="职业照"
-            className="w-[100px] h-[133px] object-cover rounded-lg border"
+            className="w-[100px] h-[133px] object-cover rounded-lg border border-black dark:border-white"
           />
           <div className="absolute inset-0 bg-black/40 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-0.5">
             <Button
@@ -121,7 +121,7 @@ export function PhotoUploader() {
         </div>
       ) : (
         <button
-          className="flex flex-col items-center justify-center gap-1.5 w-[100px] h-[133px] border-2 border-dashed rounded-lg text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+          className="flex flex-col items-center justify-center gap-1.5 w-[100px] h-[133px] border-2 border-dashed border-black dark:border-white rounded-lg text-xs text-muted-foreground hover:border-primary hover:text-primary transition-colors"
           onClick={() => fileInputRef.current?.click()}
         >
           <Camera className="size-5" />

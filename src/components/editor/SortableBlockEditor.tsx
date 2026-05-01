@@ -5,9 +5,10 @@ import { BlockEditor } from './BlockEditor'
 
 interface SortableBlockEditorProps {
   block: ResumeBlock
+  showDivider?: boolean
 }
 
-export function SortableBlockEditor({ block }: SortableBlockEditorProps) {
+export function SortableBlockEditor({ block, showDivider }: SortableBlockEditorProps) {
   const {
     attributes,
     listeners,
@@ -26,7 +27,7 @@ export function SortableBlockEditor({ block }: SortableBlockEditorProps) {
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
-      <BlockEditor block={block} dragHandleProps={listeners} />
+      <BlockEditor block={block} dragHandleProps={listeners} showDivider={showDivider} />
     </div>
   )
 }

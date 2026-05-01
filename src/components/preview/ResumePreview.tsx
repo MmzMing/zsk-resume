@@ -85,19 +85,6 @@ export function ResumePreview() {
               </div>
             )
           })}
-
-          {/* Page number */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 12,
-              right: marginRight,
-              fontSize: Math.max(9, fontSize - 3),
-              color: '#999',
-            }}
-          >
-            第 {pageIdx + 1}/{totalPages} 页
-          </div>
         </div>
       ))}
     </div>
@@ -309,7 +296,7 @@ function HeaderPreview({
   )
 
   return (
-    <section style={{ ...baseStyle, textAlign: template.headerAlign }}>
+    <section style={{ ...baseStyle, textAlign: template.headerAlign, position: 'relative' }}>
       <div
         style={{
           display: 'flex',
@@ -319,7 +306,7 @@ function HeaderPreview({
           flexDirection: 'row',
         }}
       >
-        <div style={{ flex: 1, order: 1 }}>
+        <div style={{ flex: 1, order: 1, textAlign: isCenter ? 'center' : 'left' }}>
           {nameField?.value && (
             <h1 style={{ fontSize: fontSize + 10, fontWeight: 700, color: colors.primary, marginBottom: 4 }}>
               {nameField.value}
@@ -339,7 +326,10 @@ function HeaderPreview({
         </div>
 
         {photo && (
-          <div style={{ order: 2 }}>
+          <div style={{
+            order: 2,
+            ...(isCenter ? { position: 'absolute', right: 0, top: 0 } : {}),
+          }}>
             <img src={photo} alt="职业照"
               style={{ width: 90, height: 120, objectFit: 'cover', borderRadius: 4 }} />
           </div>

@@ -2,7 +2,7 @@
 
 一款基于 React + TypeScript + Vite 构建的现代化在线简历编辑器，支持实时预览、拖拽排序、多模板切换、PDF 导出等功能。
 
-![预览图](docs/pic/f4b93a6d-b5e1-47e4-9569-2bb93e278d5d.png)
+![预览图](docs/pic/image.png)
 
 ## 技术栈
 

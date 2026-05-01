@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from 'react'
-import { GripVertical, ChevronDown, ChevronRight, Trash2, Plus, X } from 'lucide-react'
+import React, { useCallback, useMemo, useState } from 'react'
+import { GripVertical, ChevronDown, ChevronRight, Trash2, Plus, X, Pencil, Check } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -14,11 +14,13 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  useSortable,
 } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import type { ResumeBlock, HeaderField, ExperienceItem } from '@/types/resume'
 import { useResumeStore } from '@/store/resumeStore'
 import { Button } from '@/components/ui/button'
-import { generateId } from '@/lib/utils'
+import { generateId, cn } from '@/lib/utils'
 import { PhotoUploader } from './PhotoUploader'
 import { TiptapEditor } from './TiptapEditor'
 import { SortableHeaderField } from './SortableHeaderField'
@@ -26,6 +28,7 @@ import { SortableHeaderField } from './SortableHeaderField'
 interface BlockEditorProps {
   block: ResumeBlock
   dragHandleProps?: Record<string, unknown>
+  showDivider?: boolean
 }
 
 const FIELD_TEMPLATES: { label: string; key: string; type: HeaderField['type'] }[] = [
@@ -41,82 +44,193 @@ const FIELD_TEMPLATES: { label: string; key: string; type: HeaderField['type'] }
   { label: 'QQ', key: 'qq', type: 'text' },
 ]
 
-export function BlockEditor({ block, dragHandleProps }: BlockEditorProps) {
-  const [collapsed, setCollapsed] = useState(block.collapsed)
-  const updateBlock = useResumeStore((s) => s.updateBlock)
-  const removeBlock = useResumeStore((s) => s.removeBlock)
+const FIXED_TOP_KEYS = new Set(['name', 'title'])
 
-  const toggleCollapse = () => {
-    setCollapsed(!collapsed)
-    updateBlock(block.id, { collapsed: !collapsed })
-  }
+const BlockEditorHeader = ({ block, collapsed, toggleCollapse, dragHandleProps, onAdd }: {
+  block: ResumeBlock
+  collapsed: boolean
+  toggleCollapse: () => void
+  dragHandleProps?: Record<string, unknown>
+  onAdd?: () => void
+}) => {
+  const removeBlock = useResumeStore((s) => s.removeBlock)
+  const updateBlock = useResumeStore((s) => s.updateBlock)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(block.title)
+
+  const handleEditStart = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditTitle(block.title)
+    setIsEditing(true)
+  }, [block.title])
+
+  const handleEditSave = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (editTitle.trim()) {
+      updateBlock(block.id, { title: editTitle.trim() })
+    }
+    setIsEditing(false)
+  }, [editTitle, block.id, updateBlock])
+
+  const handleEditKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleEditSave(e as unknown as React.MouseEvent)
+    }
+    if (e.key === 'Escape') {
+      setIsEditing(false)
+    }
+  }, [handleEditSave])
 
   return (
-    <div className="rounded-lg border bg-card shadow-sm">
-      {/* Block Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/50">
-        <button
-          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors touch-none"
-          title="拖拽排序"
-          {...(dragHandleProps ?? {})}
-        >
-          <GripVertical className="size-4" />
-        </button>
+    <div className="flex items-center gap-2 px-3 py-2.5">
+      <button
+        className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors touch-none"
+        title="拖拽排序"
+        aria-label="拖拽排序"
+        {...(dragHandleProps ?? {})}
+      >
+        <GripVertical className="size-4" />
+      </button>
 
-        <button
-          className="flex items-center gap-1 flex-1 text-sm font-medium text-left min-w-0"
-          onClick={toggleCollapse}
-        >
-          {collapsed ? (
-            <ChevronRight className="size-4 text-muted-foreground shrink-0" />
-          ) : (
-            <ChevronDown className="size-4 text-muted-foreground shrink-0" />
-          )}
+      <button
+        className="flex items-center gap-1 flex-1 text-sm font-medium text-left min-w-0"
+        onClick={toggleCollapse}
+        aria-expanded={!collapsed}
+      >
+        {collapsed ? (
+          <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronDown className="size-4 text-muted-foreground shrink-0" />
+        )}
+        {isEditing ? (
+          <input
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={handleEditKeyDown}
+            className="flex-1 min-w-0 px-1.5 py-0.5 text-sm border border-primary rounded-md bg-background outline-none"
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
           <span className="truncate">{block.title}</span>
-        </button>
+        )}
+      </button>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-muted-foreground hover:text-destructive shrink-0"
-          onClick={() => removeBlock(block.id)}
+      {isEditing ? (
+        <button
+          className="size-7 text-green-600 hover:text-green-700 transition-colors flex items-center justify-center"
+          onClick={handleEditSave}
+          title="确认修改"
+          aria-label="确认修改"
         >
-          <Trash2 className="size-3.5" />
-        </Button>
-      </div>
-
-      {/* Block Content */}
-      {!collapsed && (
-        <div className="p-3 lg:p-4">
-          {block.type === 'header' && (
-            <HeaderBlockEditor block={block} />
-          )}
-
-          {block.type === 'experience' && (
-            <ItemsBlockEditor block={block} fieldLabels={{ company: '公司名称', title: '职位', startDate: '开始日期', endDate: '结束日期', description: '工作描述' }} />
-          )}
-
-          {block.type === 'education' && (
-            <ItemsBlockEditor block={block} fieldLabels={{ company: '学校名称', title: '专业/学位', startDate: '开始日期', endDate: '结束日期', description: '备注' }} />
-          )}
-
-          {block.type === 'skills' && (
-            <SkillsBlockEditor block={block} />
-          )}
-
-          {block.type === 'summary' && (
-            <TextBlockEditor block={block} placeholder="个人摘要..." />
-          )}
-
-          {block.type === 'projects' && (
-            <ItemsBlockEditor block={block} fieldLabels={{ company: '项目名称', title: '技术栈', startDate: '开始日期', endDate: '结束日期', description: '项目描述' }} />
-          )}
-
-          {!['header', 'experience', 'education', 'skills', 'summary', 'projects'].includes(block.type) && (
-            <TextBlockEditor block={block} placeholder="在此输入内容..." />
-          )}
-        </div>
+          <Check className="size-4" />
+        </button>
+      ) : (
+        <button
+          className="size-7 text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+          onClick={handleEditStart}
+          title="编辑名称"
+          aria-label="编辑名称"
+        >
+          <Pencil className="size-3.5" />
+        </button>
       )}
+
+      {onAdd && (
+        <button
+          className="size-7 text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+          onClick={(e) => {
+            e.stopPropagation()
+            onAdd()
+          }}
+          aria-label={`添加条目到 ${block.title}`}
+        >
+          <Plus className="size-4" />
+        </button>
+      )}
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-7 text-muted-foreground hover:text-destructive shrink-0"
+        onClick={() => removeBlock(block.id)}
+        aria-label={`删除 ${block.title}`}
+      >
+        <Trash2 className="size-3.5" />
+      </Button>
+    </div>
+  )
+}
+
+const BlockEditorContent = React.memo(({ block }: { block: ResumeBlock }) => (
+  <div className="p-3 lg:p-4">
+    {block.type === 'header' && (
+      <HeaderBlockEditor block={block} />
+    )}
+
+    {block.type === 'experience' && (
+      <ItemsBlockEditor block={block} fieldLabels={{ company: '公司名称', title: '职位', startDate: '开始日期', endDate: '结束日期', description: '工作描述' }} />
+    )}
+
+    {block.type === 'education' && (
+      <ItemsBlockEditor block={block} fieldLabels={{ company: '学校名称', title: '专业/学位', startDate: '开始日期', endDate: '结束日期', description: '备注' }} />
+    )}
+
+    {block.type === 'skills' && (
+      <SkillsBlockEditor block={block} />
+    )}
+
+    {block.type === 'summary' && (
+      <TextBlockEditor block={block} placeholder="个人摘要..." />
+    )}
+
+    {block.type === 'projects' && (
+      <ItemsBlockEditor block={block} fieldLabels={{ company: '项目名称', title: '技术栈', startDate: '开始日期', endDate: '结束日期', description: '项目描述' }} />
+    )}
+
+    {!['header', 'experience', 'education', 'skills', 'summary', 'projects'].includes(block.type) && (
+      <TextBlockEditor block={block} placeholder="在此输入内容..." />
+    )}
+  </div>
+))
+
+export function BlockEditor({ block, dragHandleProps, showDivider = true }: BlockEditorProps) {
+  const updateBlock = useResumeStore((s) => s.updateBlock)
+
+  const toggleCollapse = useCallback(() => {
+    updateBlock(block.id, { collapsed: !block.collapsed })
+  }, [block.id, block.collapsed, updateBlock])
+
+  const handleAddItem = useCallback(() => {
+    const newItem: ExperienceItem = {
+      id: generateId(),
+      company: '',
+      title: '',
+      startDate: '',
+      endDate: '',
+      description: '',
+    }
+    const items = (block.content?.items as ExperienceItem[]) ?? []
+    updateBlock(block.id, { content: { items: [...items, newItem] } })
+  }, [block.id, block.content?.items, updateBlock])
+
+  const showAddButton = ['experience', 'education', 'projects'].includes(block.type)
+
+  return (
+    <div className={cn("pb-5 pt-4", showDivider && "border-b border-black dark:border-white")}>
+      <BlockEditorHeader block={block} collapsed={block.collapsed} toggleCollapse={toggleCollapse} dragHandleProps={dragHandleProps} onAdd={showAddButton ? handleAddItem : undefined} />
+      <div
+        className={cn(
+          "grid overflow-hidden",
+          block.collapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+        )}
+        style={{ transition: 'grid-template-rows 200ms ease-out' }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <BlockEditorContent block={block} />
+        </div>
+      </div>
     </div>
   )
 }
@@ -134,9 +248,36 @@ const DEFAULT_FIELD_ICONS: Record<string, string> = {
   qq: 'hash',
 }
 
-function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
+function useHeaderFieldOperations(blockId: string, fields: HeaderField[]) {
   const updateBlock = useResumeStore((s) => s.updateBlock)
+
+  const updateField = useCallback((key: string, value: string) => {
+    const newFields = fields.map((f) => (f.key === key ? { ...f, value } : f))
+    updateBlock(blockId, { headerFields: newFields })
+  }, [fields, blockId, updateBlock])
+
+  const updateFieldIcon = useCallback((key: string, icon: string) => {
+    const newFields = fields.map((f) => (f.key === key ? { ...f, icon } : f))
+    updateBlock(blockId, { headerFields: newFields })
+  }, [fields, blockId, updateBlock])
+
+  const updateFieldLabel = useCallback((key: string, label: string) => {
+    const newFields = fields.map((f) => (f.key === key ? { ...f, label } : f))
+    updateBlock(blockId, { headerFields: newFields })
+  }, [fields, blockId, updateBlock])
+
+  const removeField = useCallback((key: string) => {
+    if (FIXED_TOP_KEYS.has(key)) return
+    const newFields = fields.filter((f) => f.key !== key)
+    updateBlock(blockId, { headerFields: newFields })
+  }, [fields, blockId, updateBlock])
+
+  return { updateField, updateFieldIcon, updateFieldLabel, removeField }
+}
+
+function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
   const fields = useMemo(() => block.headerFields ?? [], [block.headerFields])
+  const { updateField, updateFieldIcon, updateFieldLabel, removeField } = useHeaderFieldOperations(block.id, fields)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -150,32 +291,12 @@ function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
     })
   )
 
-  const updateField = (key: string, value: string) => {
-    const newFields = fields.map((f) => (f.key === key ? { ...f, value } : f))
-    updateBlock(block.id, { headerFields: newFields })
-  }
-
-  const updateFieldIcon = (key: string, icon: string) => {
-    const newFields = fields.map((f) => (f.key === key ? { ...f, icon } : f))
-    updateBlock(block.id, { headerFields: newFields })
-  }
-
-  const FIXED_TOP_KEYS = new Set(['name', 'title'])
-
-  const removeField = (key: string) => {
-    if (FIXED_TOP_KEYS.has(key)) return
-    const newFields = fields.filter((f) => f.key !== key)
-    updateBlock(block.id, { headerFields: newFields })
-  }
-
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event
       if (!over || active.id === over.id) return
 
       const fixedTopKeys = new Set(['name', 'title'])
-
-      // Prevent dragging fixed fields
       if (fixedTopKeys.has(String(active.id))) return
 
       const activeField = fields.find((f) => f.key === active.id)
@@ -189,19 +310,17 @@ function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
       const newFields = [...fields]
       const [moved] = newFields.splice(oldIndex, 1)
 
-      // Change layer when dropped onto a field in a different layer
-      // Dropping onto fixed fields (name/title) changes to 'top' layer
       if (activeField.layer !== overField.layer || fixedTopKeys.has(String(over.id))) {
         moved.layer = overField.layer
       }
 
       newFields.splice(newIndex, 0, moved)
-      updateBlock(block.id, { headerFields: newFields })
+      useResumeStore.getState().updateBlock(block.id, { headerFields: newFields })
     },
-    [fields, block.id, updateBlock]
+    [fields, block.id]
   )
 
-  const addField = (template: typeof FIELD_TEMPLATES[number]) => {
+  const addField = useCallback((template: typeof FIELD_TEMPLATES[number]) => {
     const defaultIcon = DEFAULT_FIELD_ICONS[template.key] || 'bookmark'
     const isDuplicate = fields.some((f) => f.key === template.key)
     const key = isDuplicate ? `${template.key}_${generateId()}` : template.key
@@ -213,10 +332,10 @@ function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
       icon: defaultIcon,
       layer: 'bottom',
     }
-    updateBlock(block.id, { headerFields: [...fields, newField] })
-  }
+    useResumeStore.getState().updateBlock(block.id, { headerFields: [...fields, newField] })
+  }, [fields, block.id])
 
-  const addCustomField = () => {
+  const addCustomField = useCallback(() => {
     const key = `custom_${generateId()}`
     const newField: HeaderField = {
       key,
@@ -226,23 +345,32 @@ function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
       icon: 'bookmark',
       layer: 'bottom',
     }
-    updateBlock(block.id, { headerFields: [...fields, newField] })
-  }
+    useResumeStore.getState().updateBlock(block.id, { headerFields: [...fields, newField] })
+  }, [fields, block.id])
 
-  const updateFieldLabel = (key: string, label: string) => {
-    const newFields = fields.map((f) => (f.key === key ? { ...f, label } : f))
-    updateBlock(block.id, { headerFields: newFields })
-  }
-
-  const availableTemplates = FIELD_TEMPLATES.filter(
-    (t) => !FIXED_TOP_KEYS.has(t.key) && !fields.some((f) => f.key === t.key || f.key.startsWith(t.key + '_'))
+  const availableTemplates = useMemo(() => 
+    FIELD_TEMPLATES.filter(
+      (t) => !FIXED_TOP_KEYS.has(t.key) && !fields.some((f) => f.key === t.key || f.key.startsWith(t.key + '_'))
+    ),
+    [fields]
   )
 
-  const topFields = fields.filter((f) => f.layer === 'top')
-  const bottomFields = fields.filter((f) => f.layer !== 'top')
+  const topFields = useMemo(() => fields.filter((f) => f.layer === 'top'), [fields])
+  const bottomFields = useMemo(() => fields.filter((f) => f.layer !== 'top'), [fields])
+  const fixedTopFields = useMemo(() => topFields.filter((f) => FIXED_TOP_KEYS.has(f.key)), [topFields])
+  const sortableTopFields = useMemo(() => topFields.filter((f) => !FIXED_TOP_KEYS.has(f.key)), [topFields])
 
-  const fixedTopFields = topFields.filter((f) => FIXED_TOP_KEYS.has(f.key))
-  const sortableTopFields = topFields.filter((f) => !FIXED_TOP_KEYS.has(f.key))
+  const renderField = useCallback((field: HeaderField) => (
+    <SortableHeaderField
+      key={field.key}
+      field={field}
+      onUpdateValue={(value) => updateField(field.key, value)}
+      onUpdateIcon={(icon) => updateFieldIcon(field.key, icon)}
+      onUpdateLabel={field.key.startsWith('custom_') ? (label) => updateFieldLabel(field.key, label) : undefined}
+      onRemove={() => removeField(field.key)}
+      fixed={FIXED_TOP_KEYS.has(field.key)}
+    />
+  ), [updateField, updateFieldIcon, updateFieldLabel, removeField])
 
   return (
     <div className="space-y-4">
@@ -263,51 +391,19 @@ function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-3">
-                {/* Top Layer - Fixed fields + Sortable fields */}
                 <div className="space-y-2">
                   <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">上层</div>
                   <div className="space-y-2">
-                    {/* Fixed fields: name & title */}
-                    {fixedTopFields.map((field) => (
-                      <SortableHeaderField
-                        key={field.key}
-                        field={field}
-                        onUpdateValue={(value) => updateField(field.key, value)}
-                        onUpdateIcon={(icon) => updateFieldIcon(field.key, icon)}
-                        onUpdateLabel={field.key.startsWith('custom_') ? (label) => updateFieldLabel(field.key, label) : undefined}
-                        onRemove={() => removeField(field.key)}
-                        fixed
-                      />
-                    ))}
-                    {/* Sortable top fields */}
-                    {sortableTopFields.map((field) => (
-                      <SortableHeaderField
-                        key={field.key}
-                        field={field}
-                        onUpdateValue={(value) => updateField(field.key, value)}
-                        onUpdateIcon={(icon) => updateFieldIcon(field.key, icon)}
-                        onUpdateLabel={field.key.startsWith('custom_') ? (label) => updateFieldLabel(field.key, label) : undefined}
-                        onRemove={() => removeField(field.key)}
-                      />
-                    ))}
+                    {fixedTopFields.map(renderField)}
+                    {sortableTopFields.map(renderField)}
                   </div>
                 </div>
 
-                {/* Bottom Layer */}
                 {bottomFields.length > 0 && (
                   <div className="space-y-2">
                     <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">下层</div>
                     <div className="space-y-2">
-                      {bottomFields.map((field) => (
-                        <SortableHeaderField
-                          key={field.key}
-                          field={field}
-                          onUpdateValue={(value) => updateField(field.key, value)}
-                          onUpdateIcon={(icon) => updateFieldIcon(field.key, icon)}
-                          onUpdateLabel={field.key.startsWith('custom_') ? (label) => updateFieldLabel(field.key, label) : undefined}
-                          onRemove={() => removeField(field.key)}
-                        />
-                      ))}
+                      {bottomFields.map(renderField)}
                     </div>
                   </div>
                 )}
@@ -340,31 +436,24 @@ function HeaderBlockEditor({ block }: { block: ResumeBlock }) {
   )
 }
 
-/* ── Items block editor (experience / education / projects) ── */
-
 type ItemFieldLabel = Record<Exclude<keyof ExperienceItem, 'id'>, string>
 
-function ItemsBlockEditor({ block, fieldLabels }: {
-  block: ResumeBlock
-  fieldLabels: ItemFieldLabel
-}) {
+function useItemOperations(blockId: string, items: ExperienceItem[]) {
   const updateBlock = useResumeStore((s) => s.updateBlock)
-  const pageLayout = useResumeStore((s) => s.pageLayout)
-  const items: ExperienceItem[] = (block.content?.items as ExperienceItem[]) ?? []
 
-  const updateItem = (itemId: string, field: keyof ExperienceItem, value: string) => {
+  const updateItem = useCallback((itemId: string, field: keyof ExperienceItem, value: string) => {
     const newItems = items.map((item) =>
       item.id === itemId ? { ...item, [field]: value } : item
     )
-    updateBlock(block.id, { content: { ...block.content, items: newItems } })
-  }
+    updateBlock(blockId, { content: { items: newItems } })
+  }, [items, blockId, updateBlock])
 
-  const removeItem = (itemId: string) => {
+  const removeItem = useCallback((itemId: string) => {
     const newItems = items.filter((item) => item.id !== itemId)
-    updateBlock(block.id, { content: { ...block.content, items: newItems } })
-  }
+    updateBlock(blockId, { content: { items: newItems } })
+  }, [items, blockId, updateBlock])
 
-  const addItem = () => {
+  const addItem = useCallback(() => {
     const newItem: ExperienceItem = {
       id: generateId(),
       company: '',
@@ -373,71 +462,195 @@ function ItemsBlockEditor({ block, fieldLabels }: {
       endDate: '',
       description: '',
     }
-    updateBlock(block.id, { content: { ...block.content, items: [...items, newItem] } })
-  }
+    updateBlock(blockId, { content: { items: [...items, newItem] } })
+  }, [items, blockId, updateBlock])
+
+  return { updateItem, removeItem, addItem }
+}
+
+const SortableExperienceItemCard = React.memo(({ item, fieldLabels, onUpdate, onRemove, dragHandleProps }: {
+  item: ExperienceItem
+  fieldLabels: ItemFieldLabel
+  onUpdate: (itemId: string, field: keyof ExperienceItem, value: string) => void
+  onRemove: (itemId: string) => void
+  dragHandleProps?: Record<string, unknown>
+}) => {
+  const pageLayout = useResumeStore((s) => s.pageLayout)
 
   return (
-    <div className="space-y-4">
-      {items.map((item) => (
-        <div key={item.id} className="border rounded-md p-3 space-y-2 relative">
+    <div className="border border-black dark:border-white rounded-md p-3 space-y-2 relative">
+      <div className="flex items-start gap-2">
+        <button
+          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors touch-none shrink-0 mt-0.5"
+          title="拖拽排序"
+          aria-label="拖拽排序"
+          {...(dragHandleProps ?? {})}
+        >
+          <GripVertical className="size-3.5" />
+        </button>
+        <div className="flex-1 min-w-0 space-y-2">
           <button
             className="absolute top-2 right-2 text-muted-foreground hover:text-destructive p-1"
-            onClick={() => removeItem(item.id)}
+            onClick={() => onRemove(item.id)}
+            aria-label="删除条目"
           >
             <X className="size-3.5" />
           </button>
 
           <div className="flex flex-col sm:flex-row gap-2">
             <input type="text" placeholder={fieldLabels.company} value={item.company}
-              onChange={(e) => updateItem(item.id, 'company', e.target.value)}
-              className="flex-1 px-2.5 py-1.5 text-sm border rounded-md outline-none focus:ring-2 focus:ring-ring bg-background min-h-[40px] sm:min-h-0" />
+              onChange={(e) => onUpdate(item.id, 'company', e.target.value)}
+              className="flex-1 px-2.5 py-1.5 text-sm border border-black dark:border-white rounded-md outline-none focus:ring-2 focus:ring-black dark:focus:ring-white bg-background min-h-[40px] sm:min-h-0" />
             <input type="text" placeholder={fieldLabels.title} value={item.title}
-              onChange={(e) => updateItem(item.id, 'title', e.target.value)}
-              className="flex-1 px-2.5 py-1.5 text-sm border rounded-md outline-none focus:ring-2 focus:ring-ring bg-background min-h-[40px] sm:min-h-0" />
+              onChange={(e) => onUpdate(item.id, 'title', e.target.value)}
+              className="flex-1 px-2.5 py-1.5 text-sm border border-black dark:border-white rounded-md outline-none focus:ring-2 focus:ring-black dark:focus:ring-white bg-background min-h-[40px] sm:min-h-0" />
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2">
             <input type="text" placeholder={fieldLabels.startDate} value={item.startDate}
-              onChange={(e) => updateItem(item.id, 'startDate', e.target.value)}
-              className="flex-1 px-2.5 py-1.5 text-sm border rounded-md outline-none focus:ring-2 focus:ring-ring bg-background min-h-[40px] sm:min-h-0" />
+              onChange={(e) => onUpdate(item.id, 'startDate', e.target.value)}
+              className="flex-1 px-2.5 py-1.5 text-sm border border-black dark:border-white rounded-md outline-none focus:ring-2 focus:ring-black dark:focus:ring-white bg-background min-h-[40px] sm:min-h-0" />
             <input type="text" placeholder={fieldLabels.endDate} value={item.endDate}
-              onChange={(e) => updateItem(item.id, 'endDate', e.target.value)}
-              className="flex-1 px-2.5 py-1.5 text-sm border rounded-md outline-none focus:ring-2 focus:ring-ring bg-background min-h-[40px] sm:min-h-0" />
+              onChange={(e) => onUpdate(item.id, 'endDate', e.target.value)}
+              className="flex-1 px-2.5 py-1.5 text-sm border border-black dark:border-white rounded-md outline-none focus:ring-2 focus:ring-black dark:focus:ring-white bg-background min-h-[40px] sm:min-h-0" />
           </div>
 
           <TiptapEditor
             value={item.description}
-            onChange={(v) => updateItem(item.id, 'description', v)}
+            onChange={(v) => onUpdate(item.id, 'description', v)}
             placeholder={fieldLabels.description}
             fontSize={pageLayout?.fontSize}
             lineHeight={pageLayout?.lineHeight}
             paragraphSpacing={pageLayout?.paragraphSpacing}
           />
         </div>
-      ))}
+      </div>
+    </div>
+  )
+})
 
-      <Button variant="outline" size="sm" className="text-xs w-full sm:w-auto" onClick={addItem}>+ 添加条目</Button>
+function SortableExperienceItem({ item, fieldLabels, onUpdate, onRemove }: {
+  item: ExperienceItem
+  fieldLabels: ItemFieldLabel
+  onUpdate: (itemId: string, field: keyof ExperienceItem, value: string) => void
+  onRemove: (itemId: string) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <SortableExperienceItemCard
+        item={item}
+        fieldLabels={fieldLabels}
+        onUpdate={onUpdate}
+        onRemove={onRemove}
+        dragHandleProps={listeners}
+      />
     </div>
   )
 }
 
-/* ── Skills block editor ── */
+function ItemsBlockEditor({ block, fieldLabels }: {
+  block: ResumeBlock
+  fieldLabels: ItemFieldLabel
+}) {
+  const items = useMemo(() => (block.content?.items as ExperienceItem[]) ?? [], [block.content?.items])
+  const { updateItem, removeItem, addItem } = useItemOperations(block.id, items)
 
-function SkillsBlockEditor({ block }: { block: ResumeBlock }) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 100, tolerance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+
+      const currentItems = useResumeStore.getState().blocks.find(b => b.id === block.id)?.content?.items as ExperienceItem[] | undefined
+      if (!currentItems) return
+
+      const oldIndex = currentItems.findIndex((i) => i.id === active.id)
+      const newIndex = currentItems.findIndex((i) => i.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+
+      const newItems = [...currentItems]
+      const [moved] = newItems.splice(oldIndex, 1)
+      newItems.splice(newIndex, 0, moved)
+      useResumeStore.getState().updateBlock(block.id, { content: { items: newItems } })
+    },
+    [block.id]
+  )
+
+  return (
+    <div className="space-y-3">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+          {items.map((item) => (
+            <SortableExperienceItem
+              key={item.id}
+              item={item}
+              fieldLabels={fieldLabels}
+              onUpdate={updateItem}
+              onRemove={removeItem}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full gap-1 text-xs"
+        onClick={() => addItem()}
+      >
+        <Plus className="size-3.5" />
+        添加条目
+      </Button>
+    </div>
+  )
+}
+
+const SkillsBlockEditor = React.memo(({ block }: { block: ResumeBlock }) => {
   const updateBlock = useResumeStore((s) => s.updateBlock)
-  const skills: string[] = (block.content?.skills as string[]) ?? []
+  const skills: string[] = useMemo(
+    () => (block.content?.skills as string[]) ?? [],
+    [block.content?.skills]
+  )
 
-  const updateSkills = (text: string) => {
+  const updateSkills = useCallback((text: string) => {
     const newSkills = text.split(/[\n,，]/).map((s) => s.trim()).filter(Boolean)
-    updateBlock(block.id, { content: { ...block.content, skills: newSkills } })
-  }
+    updateBlock(block.id, { content: { skills: newSkills } })
+  }, [block.id, updateBlock])
+
+  const skillsText = useMemo(() => skills.join('\n'), [skills])
 
   return (
     <div className="space-y-2">
-      <textarea placeholder="每行一个技能（或用逗号分隔）..." value={skills.join('\n')}
+      <textarea placeholder="每行一个技能（或用逗号分隔）..." value={skillsText}
         onChange={(e) => updateSkills(e.target.value)}
         rows={5}
-        className="w-full px-3 py-2 text-sm border rounded-md outline-none focus:ring-2 focus:ring-ring bg-background resize-y min-h-[100px]" />
+        className="w-full px-3 py-2 text-sm border border-black dark:border-white rounded-md outline-none focus:ring-2 focus:ring-black dark:focus:ring-white bg-background resize-y min-h-[100px]" />
       <div className="flex flex-wrap gap-1.5">
         {skills.map((skill) => (
           <span key={skill} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-muted rounded-full">{skill}</span>
@@ -445,23 +658,21 @@ function SkillsBlockEditor({ block }: { block: ResumeBlock }) {
       </div>
     </div>
   )
-}
+})
 
-/* ── Text block editor (summary / custom) ── */
-
-function TextBlockEditor({ block, placeholder }: { block: ResumeBlock; placeholder: string }) {
+const TextBlockEditor = React.memo(({ block, placeholder }: { block: ResumeBlock; placeholder: string }) => {
   const updateBlock = useResumeStore((s) => s.updateBlock)
+  const pageLayout = useResumeStore((s) => s.pageLayout)
   const text = (block.content?.text as string) ?? ''
-  const { pageLayout } = useResumeStore()
 
   return (
     <TiptapEditor
       value={text}
-      onChange={(v) => updateBlock(block.id, { content: { ...block.content, text: v } })}
+      onChange={(v) => updateBlock(block.id, { content: { text: v } })}
       placeholder={placeholder}
       fontSize={pageLayout?.fontSize}
       lineHeight={pageLayout?.lineHeight}
       paragraphSpacing={pageLayout?.paragraphSpacing}
     />
   )
-}
+})

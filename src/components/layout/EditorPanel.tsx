@@ -52,7 +52,7 @@ export function EditorPanel() {
   const sortedBlocks = [...blocks].sort((a, b) => a.order - b.order)
 
   return (
-    <aside className="w-full lg:w-1/2 border-r bg-muted/30 overflow-y-auto">
+    <aside className="w-full lg:w-1/2 border-r bg-background overflow-y-auto">
       <div className="p-4 lg:p-6">
         <DndContext
           sensors={sensors}
@@ -63,9 +63,9 @@ export function EditorPanel() {
             items={sortedBlocks.map((b) => b.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div className="space-y-4">
-              {sortedBlocks.map((block) => (
-                <SortableBlockEditor key={block.id} block={block} />
+            <div className="space-y-0">
+              {sortedBlocks.map((block, index) => (
+                <SortableBlockEditor key={block.id} block={block} showDivider={index < sortedBlocks.length - 1} />
               ))}
             </div>
           </SortableContext>
